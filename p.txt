@@ -1,258 +1,210 @@
-AGILE7STAGE - COMPLETE CI/CD PIPELINE & KUBERNETES LAB EXECUTION GUIDE
+DOCKER7STAGE - 7-STAGE JENKINS CI/CD PIPELINE & KUBERNETES LAB GUIDE
 
-[IMPORTANT BEFORE YOU START ON YOUR FRIEND'S LAPTOP]:
-1. Copy or move this file ('p.txt') OUTSIDE of the project folder (e.g. to Desktop).
-2. Open VS Code or PowerShell inside the 'Agile7stage' directory.
+PROJECT NAMING STANDARDS:
+- Local Project Folder: docker7stage (Path: C:\Users\mahesh\Desktop\docker7stage)
+- GitHub Repository: docker7stage
+- Docker Hub Repository: docker7stage
+- Application / Container: docker7stage
+- Kubernetes Resources: docker7stage-v1, docker7stage-v2, docker7stage-v3
+- Jenkins Pipeline Job: docker7stage-pipeline
 
-NOTE ON NAMING:
-- Docker and Kubernetes require lowercase resource names.
-- Project / GitHub repo: Agile7Stage (or agile7stage)
-- Docker image repository: agile7stage
-- Container name: agile7stage-demo
-- Kubernetes deployment & service: agile7stage
+THREE JENKINS STAGES (Displayed in Jenkins Stage View):
+1. Build and Test
+2. Build and Push Docker Image
+3. Deploy to Kubernetes
+
+VERSION CONFIGURATION & PORT ALLOCATION:
+- Version v1: Docker image tag v1 | Kubernetes: docker7stage-v1 | NodePort: 30081
+- Version v2: Docker image tag v2 | Kubernetes: docker7stage-v2 | NodePort: 30082
+- Version v3: Docker image tag v3 | Kubernetes: docker7stage-v3 | NodePort: 30083
 
 
+STAGE 1: PREREQUISITES & WINDOWS JENKINS DOCKER SETUP
+
+1. Verify tools in Windows PowerShell:
+   git --version
+   python --version
+   docker --version
+   kubectl version --client
+   kubectl get nodes
+
+   Ensure Docker Desktop is running and Kubernetes is enabled in Docker Desktop settings.
+
+2. CRITICAL WINDOWS JENKINS SETUP NOTE:
+   If Jenkins is installed as a Windows Service (running under LocalSystem), it will NOT have
+   access to Docker Desktop named pipes (\\.\pipe\docker_engine) because Docker Desktop runs
+   inside your interactive user session.
+
+   Recommended Solution for Students:
+   Download the Jenkins WAR file and run it directly in your user terminal:
+   java -jar jenkins.war --httpPort=8080
+
+   This ensures Jenkins runs with your exact user permissions and has full access to:
+   - Docker CLI and Docker Desktop daemon
+   - Python virtual environments
+   - Git and kubectl commands
+
+   Alternative if using Windows Service (services.msc):
+   - Open services.msc, right click Jenkins -> Properties -> Log On tab.
+   - Choose "This account" and enter your Windows username and password.
+   - Restart the Jenkins service so it can communicate with Docker Desktop.
 
 
-STAGE 2: LOCAL PYTHON VIRTUAL ENVIRONMENT & TESTS (PDF Page 3-5)
+STAGE 2: LOCAL APPLICATION TEST (VERSION 1)
 
-1. Create virtual environment:
+1. Open PowerShell inside C:\Users\mahesh\Desktop\docker7stage:
    python -m venv .venv
-
-2. Install dependencies:
+   .\.venv\Scripts\python.exe -m pip install --upgrade pip
    .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-
-3. Run automated tests:
    .\.venv\Scripts\python.exe -m pytest -v
-   * Expected: 2 passed.
 
-4. Run the Flask application locally:
+2. Test run the application locally:
    .\.venv\Scripts\python.exe app.py
 
-5. Test in browser:
-   Open: http://127.0.0.1:5000/
-   Open: http://127.0.0.1:5000/health
+3. Open in browser:
+   http://127.0.0.1:5000/
+   http://127.0.0.1:5000/health
 
-6. Stop the Flask server in the terminal by pressing:
-   Ctrl + C
-
-
-STAGE 3: BUILD & RUN DOCKER CONTAINER LOCALLY (PDF Page 5)
-
-1. Build the Docker image:
-   docker build -t agile7stage:v1 .
-
-2. Verify image exists:
-   docker images
-
-3. Run the container:
-   docker run --rm -d --name agile7stage-demo -p 5000:5000 agile7stage:v1
-
-4. Check running container and logs:
-   docker ps
-   docker logs agile7stage-demo
-
-5. Test in browser:
-   Open: http://localhost:5000/
-
-6. Stop the container:
-   docker stop agile7stage-demo
+4. Press Ctrl + C to stop the local server.
 
 
-STAGE 4: CREATE GITHUB REPO & PUSH INITIAL CODE (PDF Page 5-6)
+STAGE 3: CREATE GITHUB REPOSITORY & FIRST PUSH
 
-1. Go to https://github.com -> New Repository
-   - Repository name: Agile7Stage
-   - Access: Public
-   - DO NOT check "Add a README file"
-   - Click "Create repository" and copy the HTTPS URL.
+1. Go to https://github.com and create a new repository:
+   - Repository Name: docker7stage
+   - Visibility: Public
+   - Do NOT initialize with README, .gitignore, or license.
 
-2. Make sure you delete 'Kubernetes_CICD.pdf' from your folder now:
-   Remove-Item Kubernetes_CICD.pdf
-
-3. Initialize Git and make the initial commit:
-   (Replace YOUR_GITHUB_USERNAME with your real GitHub username)
-
+2. In PowerShell inside C:\Users\mahesh\Desktop\docker7stage:
    git init
    git add .
-   git commit -m "Initial Flask application and Docker setup"
+   git commit -m "Initial commit - docker7stage Version 1"
    git branch -M main
-   git remote add origin https://github.com/YOUR_GITHUB_USERNAME/Agile7Stage.git
+   git remote add origin https://github.com/YOUR_GITHUB_USERNAME/docker7stage.git
    git push -u origin main
 
-4. Verify your repository on GitHub in your browser to confirm files are present.
+   (Replace YOUR_GITHUB_USERNAME with your actual GitHub username)
 
 
-STAGE 5: VERIFY INITIAL CI WORKFLOW (VERSION 1 - TEST ONLY) (PDF Page 6-7)
+STAGE 4: DOCKER HUB REPOSITORY & ACCESS TOKEN
 
-The initial workflow file '.github/workflows/pipeline.yml' is already created in
-the repo with the test-only job.
-
-1. Check GitHub -> Actions tab in your repository.
-   - You should see the workflow "Agile7Stage Kubernetes CI/CD" running or completed.
-   - Click into it to inspect the checkout, python setup, dependency installation, and pytest.
-
-2. Demonstrate a Failed Test (PDF Page 6 - Step 15):
-   Open 'test_app.py' and change line 6 from:
-       assert b"Kubernetes CI/CD is working" in response.data
-   to:
-       assert b"Wrong message" in response.data
-
-   Commit and push the failing test:
-   git add test_app.py
-   git commit -m "Demonstrate a failing test"
-   git push
-
-   - Check GitHub Actions: The workflow run will turn RED (Failed).
-   - This proves that broken code blocks the CI pipeline!
-
-3. Fix the test back to normal:
-   Open 'test_app.py' and restore line 6 back to:
-       assert b"Kubernetes CI/CD is working" in response.data
-
-   Commit and push the fix:
-   git add test_app.py
-   git commit -m "Restore passing test assertion"
-   git push
-
-   - Check GitHub Actions: The workflow turns GREEN (Passed).
-
-
-STAGE 6: DOCKER HUB SETUP & GITHUB REPOSITORY SECRETS (PDF Page 7)
-
-1. Go to Docker Hub (https://hub.docker.com):
-   - Sign in.
-   - Click "Create repository".
-   - Name: agile7stage
+1. Sign in to https://hub.docker.com
+2. Click "Create repository":
+   - Name: docker7stage
    - Visibility: Public
+   - Click "Create"
+
+3. Generate an Access Token:
+   - Click your profile icon top-right -> Account Settings -> Security.
+   - Click "New Access Token".
+   - Description: jenkins-token
+   - Permissions: Read & Write
+   - Click "Generate" and copy the token immediately.
+
+
+STAGE 5: CONFIGURE JENKINS (CREDENTIALS & PIPELINE)
+
+1. Open Jenkins in your browser:
+   http://localhost:8080
+
+2. Add Docker Hub Credentials:
+   - Go to: Manage Jenkins -> Credentials -> System -> Global credentials (unrestricted).
+   - Click "Add Credentials":
+     * Kind: Username with password
+     * Scope: Global
+     * Username: <Your Docker Hub Username>
+     * Password: <Your Docker Hub Access Token from Stage 4>
+     * ID: dockerhub-credentials
+     * Description: Docker Hub Credentials
    - Click "Create".
+   (The ID MUST be exact: dockerhub-credentials)
 
-2. Create a Docker Hub Access Token:
-   - Click your profile picture top-right -> Account Settings.
-   - Click "Security" -> "New Access Token".
-   - Description: github-actions
-   - Access permissions: Read & Write (or Read, Write, Delete)
-   - Click "Generate" and COPY the token immediately.
-
-3. Add Secrets to your GitHub Repository:
-   - In GitHub, go to your 'Agile7Stage' repo -> Settings -> Secrets and variables -> Actions.
-   - Click "New repository secret".
-     Secret 1:
-       Name: DOCKERHUB_USERNAME
-       Secret: <Your Docker Hub username>
-       Click "Add secret".
-     Secret 2:
-       Name: DOCKERHUB_TOKEN
-       Secret: <Your Docker Hub Personal Access Token from step 2>
-       Click "Add secret".
+3. Create the Pipeline Job:
+   - Click "New Item" from the Jenkins dashboard.
+   - Enter name: docker7stage-pipeline
+   - Select "Pipeline" and click "OK".
+   - Under the "Pipeline" section at the bottom:
+     * Definition: Pipeline script from SCM
+     * SCM: Git
+     * Repository URL: https://github.com/YOUR_GITHUB_USERNAME/docker7stage.git
+     * Branches to build: */main
+     * Script Path: Jenkinsfile
+   - Click "Save".
 
 
-STAGE 7: REPLACE PIPELINE WITH VERSION 2 (DOCKER BUILD & PUSH) (PDF Page 8)
+STAGE 6: RUNNING VERSION 1 (FIRST STOPPING POINT)
 
-Now you upgrade the pipeline to automatically build and push the Docker image to Docker Hub!
+1. On the first run, click "Build Now" once.
+   This allows Jenkins to read the Jenkinsfile and discover the APP_VERSION parameter.
 
-Open '.github/workflows/pipeline.yml', delete all existing lines, and paste the
-following exact YAML content (with proper indentation preserved):
+2. Now click "Build with Parameters":
+   - APP_VERSION: v1 (default)
+   - Click "Build".
 
-[START OF pipeline.yml VERSION 2]
-name: Agile7Stage Kubernetes CI/CD
+3. Observe the Jenkins Stage View. You will see 3 stages execute:
+   [1. Build and Test] -> [2. Build and Push Docker Image] -> [3. Deploy to Kubernetes]
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+4. Verify Kubernetes resources in PowerShell:
+   kubectl get deployment docker7stage-v1
+   kubectl get pods -l app=docker7stage-v1
+   kubectl get service docker7stage-v1
 
-permissions:
-  contents: read
+5. Test Version 1 in your browser:
+   http://localhost:30081/
+   http://localhost:30081/health
 
-jobs:
-  test:
-    name: Checkout and Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run tests
-        run: python -m pytest -v
-
-  docker:
-    name: Build and Push Docker Image
-    needs: test
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/agile7stage:${{ github.sha }}
-[END OF pipeline.yml VERSION 2]
-
-Save the file and push the update to GitHub:
-git add .github/workflows/pipeline.yml
-git commit -m "Add Docker build and publish stage"
-git push
-
-Check GitHub Actions:
-- Both 'test' and 'docker' jobs should succeed!
-- Check Docker Hub: You will see the new image tagged with the commit SHA (e.g. agile7stage:7a8b9c...).
-- NOTE DOWN this Commit SHA or the full image tag! You need it for Kubernetes next.
+   Expected browser output:
+   Docker 7-Stage CI/CD Pipeline - Version 1
+   Status: Running
 
 
-STAGE 8: DEPLOY TO KUBERNETES (PDF Page 8-9)
+STAGE 7: EXTENDING TO VERSION 2 (COEXISTING DEPLOYMENT)
 
-1. Update 'k8s/deployment.yaml':
-   Open 'k8s/deployment.yaml' and replace:
-   YOUR_DOCKERHUB_USERNAME/agile7stage:REPLACE_WITH_COMMIT_SHA
-   with your real Docker Hub username and the commit SHA from the GitHub Actions run.
+When your faculty asks to demonstrate Version 2, perform these steps:
 
-   Example:
-   image: mydockerhubuser/agile7stage:4a12bc9f876e5d
+1. Update app.py:
+   Open app.py and replace its content with:
 
-   (Full file for reference):
-[START OF k8s/deployment.yaml]
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "<h1>Docker 7-Stage CI/CD Pipeline - Version 2</h1><p>Status: Running with Updated Features</p>"
+
+@app.route("/health")
+def health():
+    return jsonify(status="healthy", version="v2"), 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+
+2. Create k8s/deployment-v2.yaml:
+   Create a new file at k8s/deployment-v2.yaml with this exact content:
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agile7stage
+  name: docker7stage-v2
+  labels:
+    app: docker7stage-v2
+    version: v2
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: agile7stage
+      app: docker7stage-v2
   template:
     metadata:
       labels:
-        app: agile7stage
+        app: docker7stage-v2
+        version: v2
     spec:
       containers:
-        - name: agile7stage
-          image: YOUR_DOCKERHUB_USERNAME/agile7stage:REPLACE_WITH_COMMIT_SHA
+        - name: docker7stage
+          image: DOCKERHUB_USERNAME/docker7stage:v2
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           readinessProbe:
@@ -261,173 +213,153 @@ spec:
               port: 5000
             initialDelaySeconds: 5
             periodSeconds: 5
-[END OF k8s/deployment.yaml]
 
-2. Verify 'k8s/service.yaml':
-   (Already created in project, full content for reference):
-[START OF k8s/service.yaml]
+3. Create k8s/service-v2.yaml:
+   Create a new file at k8s/service-v2.yaml with this exact content:
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: agile7stage
+  name: docker7stage-v2
+  labels:
+    app: docker7stage-v2
+    version: v2
 spec:
   type: NodePort
   selector:
-    app: agile7stage
+    app: docker7stage-v2
   ports:
     - port: 80
       targetPort: 5000
-      nodePort: 30080
-[END OF k8s/service.yaml]
+      nodePort: 30082
 
-3. Apply to your local Kubernetes cluster:
-   kubectl config current-context
-   kubectl get nodes
-   kubectl apply -f k8s/deployment.yaml
-   kubectl apply -f k8s/service.yaml
+4. Commit and push changes to GitHub:
+   git add .
+   git commit -m "Add Version 2 application and Kubernetes manifests"
+   git push
 
-4. Check rollout status and running pods:
-   kubectl rollout status deployment/agile7stage
-   kubectl get deployments
+5. Run in Jenkins:
+   - Go to docker7stage-pipeline in Jenkins.
+   - Click "Build with Parameters".
+   - Select APP_VERSION: v2
+   - Click "Build".
+
+6. Verify Version 2 in browser:
+   http://localhost:30082/
+   http://localhost:30082/health
+
+7. Notice: Both Version 1 and Version 2 are running simultaneously:
    kubectl get pods
    kubectl get services
 
-5. Test the application running on Kubernetes in browser:
-   Open: http://localhost:30080/
-   Open: http://localhost:30080/health
 
-   * Expected output: "Hello Students! Kubernetes CI/CD is working!" and JSON {"status":"healthy"}.
+STAGE 8: EXTENDING TO VERSION 3 (COEXISTING DEPLOYMENT)
 
+When your faculty asks to demonstrate Version 3, perform these steps:
 
-STAGE 9: DEMONSTRATE AN APPLICATION UPDATE (PDF Page 10)
+1. Update app.py:
+   Open app.py and replace its content with:
 
-Now show how zero-downtime rolling update works with CI/CD:
+from flask import Flask, jsonify
 
-1. Update 'app.py':
-   Change line 5 from:
-       return "Hello Students! Kubernetes CI/CD is working!"
-   to:
-       return "Version 2: Updated through CI/CD!"
+app = Flask(__name__)
 
-2. In 'test_app.py':
-   Update line 6 to match:
-       assert b"Version 2" in response.data
+@app.route("/")
+def home():
+    return "<h1>Docker 7-Stage CI/CD Pipeline - Version 3</h1><p>Status: Production Release Active</p>"
 
-3. Commit and push the changes:
+@app.route("/health")
+def health():
+    return jsonify(status="healthy", version="v3"), 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+
+2. Create k8s/deployment-v3.yaml:
+   Create a new file at k8s/deployment-v3.yaml with this exact content:
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker7stage-v3
+  labels:
+    app: docker7stage-v3
+    version: v3
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: docker7stage-v3
+  template:
+    metadata:
+      labels:
+        app: docker7stage-v3
+        version: v3
+    spec:
+      containers:
+        - name: docker7stage
+          image: DOCKERHUB_USERNAME/docker7stage:v3
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+3. Create k8s/service-v3.yaml:
+   Create a new file at k8s/service-v3.yaml with this exact content:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker7stage-v3
+  labels:
+    app: docker7stage-v3
+    version: v3
+spec:
+  type: NodePort
+  selector:
+    app: docker7stage-v3
+  ports:
+    - port: 80
+      targetPort: 5000
+      nodePort: 30083
+
+4. Commit and push changes to GitHub:
    git add .
-   git commit -m "Update application message to Version 2"
+   git commit -m "Add Version 3 application and Kubernetes manifests"
    git push
 
-4. Wait for GitHub Actions to complete the build and push.
-   Go to GitHub Actions or Docker Hub and copy the NEW commit SHA.
+5. Run in Jenkins:
+   - Go to docker7stage-pipeline in Jenkins.
+   - Click "Build with Parameters".
+   - Select APP_VERSION: v3
+   - Click "Build".
 
-5. Update the Kubernetes Deployment image:
-   (Replace YOUR_DOCKERHUB_USERNAME and NEW_COMMIT_SHA with actual values)
-
-   kubectl set image deployment/agile7stage agile7stage=YOUR_DOCKERHUB_USERNAME/agile7stage:NEW_COMMIT_SHA
-
-6. Monitor the rolling update:
-   kubectl rollout status deployment/agile7stage
-   kubectl get pods
-
-7. Refresh your browser at:
-   http://localhost:30080/
-   * Expected: "Version 2: Updated through CI/CD!" appears smoothly!
+6. Verify Version 3 in browser:
+   http://localhost:30083/
+   http://localhost:30083/health
 
 
-STAGE 10: USEFUL DEBUGGING & CLEANUP COMMANDS (PDF Page 10-11)
+STAGE 9: MULTI-VERSION COEXISTENCE & VERIFICATION SUMMARY
 
-Troubleshooting commands if anything goes wrong:
-- View all cluster resources:
-  kubectl get all
+1. View all 3 application versions running concurrently:
+   kubectl get deployments
+   kubectl get pods -o wide
+   kubectl get services
 
-- View deployment details:
-  kubectl describe deployment agile7stage
+2. Browser Verification Checklist:
+   - Version 1: http://localhost:30081/  (Displays: Version 1)
+   - Version 2: http://localhost:30082/  (Displays: Version 2)
+   - Version 3: http://localhost:30083/  (Displays: Version 3)
 
-- View pod details & events:
-  kubectl describe pod <POD_NAME>
+   Each version runs its own independent Pods, Deployment, and NodePort Service.
+   None of the versions overwrite each other!
 
-- View live application logs:
-  kubectl logs deployment/agile7stage
-
-- Check recent cluster events:
-  kubectl get events --sort-by=.metadata.creationTimestamp
-
-- To delete the Kubernetes deployment and service when finished:
-  kubectl delete -f k8s/service.yaml
-  kubectl delete -f k8s/deployment.yaml
-
-
-STAGE 11: REPEATING RELEASES FOR MULTIPLE VERSIONS (VERSION 2 & VERSION 3)
-
-Whenever your instructor asks to demonstrate another version (Version 2 or Version 3), remember:
-You ONLY change 2 lines of code (in app.py and test_app.py).
-You DO NOT need to touch Dockerfile, pipeline.yml, or Kubernetes service files!
-
-
-[PROCEDURE FOR APPLICATION VERSION 2]
-
-1. In app.py:
-   Change line 5 to:
-       return "Version 2: Updated through CI/CD!"
-
-2. In test_app.py:
-   Change line 6 to:
-       assert b"Version 2" in response.data
-
-3. Commit and push:
-   git add .
-   git commit -m "Release Application Version 2"
-   git push
-
-4. Wait for GitHub Actions to turn green.
-   Go to Docker Hub (or GitHub Actions) and copy the new Commit SHA (e.g. 8f12a3b).
-
-5. Update Kubernetes to the new image:
-   kubectl set image deployment/agile7stage agile7stage=YOUR_DOCKERHUB_USERNAME/agile7stage:NEW_COMMIT_SHA
-
-6. Check the rolling update:
-   kubectl rollout status deployment/agile7stage
-
-7. Verify in browser:
-   Open: http://localhost:30080/
-   * Output will show: "Version 2: Updated through CI/CD!"
-
-
-[PROCEDURE FOR APPLICATION VERSION 3]
-
-If your instructor asks: "Now show Version 3":
-
-1. In app.py:
-   Change line 5 to:
-       return "Version 3: Agile7Stage Live Update Complete!"
-
-2. In test_app.py:
-   Change line 6 to:
-       assert b"Version 3" in response.data
-
-3. Commit and push:
-   git add .
-   git commit -m "Release Application Version 3"
-   git push
-
-4. Wait for GitHub Actions to turn green.
-   Go to Docker Hub (or GitHub Actions) and copy the new Version 3 Commit SHA (e.g. 4c99ef1).
-
-5. Update Kubernetes to the Version 3 image:
-   kubectl set image deployment/agile7stage agile7stage=YOUR_DOCKERHUB_USERNAME/agile7stage:NEW_COMMIT_SHA
-
-6. Check the rolling update:
-   kubectl rollout status deployment/agile7stage
-
-7. Verify in browser:
-   Open: http://localhost:30080/
-   * Output will show: "Version 3: Agile7Stage Live Update Complete!"
-
-
-[BONUS: HOW TO ROLLBACK IF SIR ASKS]
-If your instructor asks "How do you roll back to the previous version instantly without re-pushing?":
-Run this single command:
-   kubectl rollout undo deployment/agile7stage
-   kubectl rollout status deployment/agile7stage
-Then refresh http://localhost:30080/ and it will instantly revert to the previous version!
+3. Cleanup (when demonstration is complete):
+   kubectl delete -f k8s/service-v1.yaml -f k8s/deployment-v1.yaml
+   kubectl delete -f k8s/service-v2.yaml -f k8s/deployment-v2.yaml
+   kubectl delete -f k8s/service-v3.yaml -f k8s/deployment-v3.yaml

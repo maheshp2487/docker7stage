@@ -1,20 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agile7stage
+  name: docker7stage-v1
+  labels:
+    app: docker7stage-v1
+    version: v1
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: agile7stage
+      app: docker7stage-v1
   template:
     metadata:
       labels:
-        app: agile7stage
+        app: docker7stage-v1
+        version: v1
     spec:
       containers:
-        - name: agile7stage
-          image: YOUR_DOCKERHUB_USERNAME/agile7stage:REPLACE_WITH_COMMIT_SHA
+        - name: docker7stage
+          image: DOCKERHUB_USERNAME/docker7stage:v1
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           readinessProbe:
